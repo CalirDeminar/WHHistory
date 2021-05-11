@@ -28,14 +28,15 @@ def fetch_character_history(character_id, db, existing_records):
     url = ("https://esi.evetech.net/latest/characters/" +
            charId +
            "/corporationhistory/?datasource=tranquility")
-    resp = requests.get(url, headers=headers).json()
+    resp = list(requests.get(url, headers=headers).json())
+    resp.reverse()
     current_corp = 0
     for line in resp:
         if "corporation_id" in line and \
                 "record_id" in line and \
                 "start_date" in line and \
                 current_corp != 0 and \
-                (line["record_id"],) not in existing_records:
+                (str(line["record_id"]),) not in existing_records:
             output = {
                 "character": charId,
                 "date": line["start_date"],
@@ -45,18 +46,31 @@ def fetch_character_history(character_id, db, existing_records):
             }
             db.execute("INSERT INTO transfers VALUES(?, ?, ?, ?, ?)",
                        (output["id"], output["date"], output["character"], output["source"], output["destination"]))
+        else:
+            print("Skipping")
         if "corporation_id" in line:
             current_corp = line["corporation_id"]
     db.commit()
 
 
 def get_combined_corp_history(db):
+    size = 0
+    with open("./combined_ids.dat", "r") as file:
+        for line in file:
+            size = size + 1
+    file.close()
     with open("./combined_ids.dat", "r") as file:
         existing_records = db.execute("SELECT id FROM transfers").fetchall()
         print(existing_records)
         last = datetime.datetime.now()
+        i = 0
         for line in file:
-            fetch_character_history(line, db, existing_records)
+            print(str(i) + " of " + str(size))
+            i = i + 1
+            try:
+                fetch_character_history(line, db, existing_records)
+            except:
+                print("Error at character: " + line)
             now = datetime.datetime.now()
             print(now - last)
             last = now

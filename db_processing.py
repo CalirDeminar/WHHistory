@@ -185,9 +185,9 @@ def graph_corp_char_movement(db, corp_name):
 
 
 def main():
-    db = sqlite3.connect('WHHistory.sqlite3')
+    db = sqlite3.connect('WHHistory2.sqlite3')
     set_up_tables(db)
-    graph_corp_char_movement(db, "All Consuming Darkness")
+    graph_corp_char_movement(db, "No Vacancies")
 
 
 main()
