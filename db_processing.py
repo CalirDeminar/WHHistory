@@ -224,6 +224,7 @@ def main():
                  "Another War",
                  "Arctic Light Inc.",
                  "Avanto",
+                 "Adhocracy Incorporated",
                  "Dark Venture Corporation",
                  "Epicentre Syndicate",
                  "EyEs.FR",
@@ -251,8 +252,12 @@ def main():
                  "Vision Inc",
                  "Wormhole Outlaw",
                  "Wormhole Rats and Fromage",
+                 "Ricochet Inc",
+                 "Suddenly Carebears",
                  "X-Zest Voyage",
-                 "X Legion"]:
+                 "X Legion",
+                 "The Dark Space Initiative",
+                 "Adhocracy Incorporated"]:
         try:
             graph_corp_char_movement(db, name)
         except:
