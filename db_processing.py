@@ -145,11 +145,28 @@ def get_corp_id(db, corp_name):
     return db.execute("SELECT id FROM corps WHERE name=?", (corp_name,)).fetchall()[0][0]
 
 
+def get_eviction_dict():
+    data = []
+    file = open("./evictions.dat", "r")
+    for line in file:
+        split = line.split(": ")
+        target = split[0]
+        datestring = split[1]
+        target = target.strip()
+        datestring = datestring.strip()
+        ts = datetime.datetime.fromisoformat(datestring.replace("Z", "").replace("T", " ").replace("/", "-"))
+        data += [{"ts": ts, "corp_name": target}]
+    file.close
+    data.sort(key=lambda i: i["ts"].timestamp())
+    return data
+
+
 def graph_corp_char_movement(db, corp_name):
     data_in = pd.Series(dtype=int)
     data_out = pd.Series(dtype=int)
     corp_id = get_corp_id(db, corp_name)
     print(corp_id)
+    e_data = get_eviction_dict()
     transfers_in = db.execute("SELECT * FROM transfers WHERE destination=? ORDER BY date ASC", (corp_id,)).fetchall()
     transfers_out = db.execute("SELECT * FROM transfers WHERE source=? ORDER BY date ASC", (corp_id,)).fetchall()
     start_date_string = db.execute("SELECT MIN(date) FROM transfers WHERE destination=?", (corp_id,)).fetchall()[0][0]
@@ -177,17 +194,69 @@ def graph_corp_char_movement(db, corp_name):
     data = pd.DataFrame(d)
     print(data)
     plt.close("all")
+    plt.figure(figsize=(20, 7.5))
     plt.plot(data)
     plt.axhline(y=0, color='k')
     plt.legend(["In", "Out"])
     plt.title(label=corp_name)
-    plt.show()
+    file = open("./evictions.dat", "r")
+    i = data_out.min()
+    j = data_in.max()
+    print(j)
+    for entry in e_data:
+        if entry["ts"] > start:
+            plt.axvline(entry["ts"])
+            plt.text(x=entry["ts"], y=i, s=entry["corp_name"])
+            if i >= (j - (j / 6)):
+                i = data_out.min()
+            else:
+                i += j / 6
+    file.close()
+    plt.savefig("./graphs/" + corp_name + ".png")
 
 
 def main():
     db = sqlite3.connect('WHHistory2.sqlite3')
     set_up_tables(db)
-    graph_corp_char_movement(db, "No Vacancies")
+    for name in ["All-Out",
+                 "All Consuming Darkness",
+                 "Almost Dangerous",
+                 "Another War",
+                 "Arctic Light Inc.",
+                 "Avanto",
+                 "Dark Venture Corporation",
+                 "Epicentre Syndicate",
+                 "EyEs.FR",
+                 "Foxholers",
+                 "Hard Knocks Inc.",
+                 "Hidden Baguette",
+                 "Holesale",
+                 "Inner Hell",
+                 "Isogen 5",
+                 "Krypted Gaming",
+                 "Lazerhawks",
+                 "Little Red Riding Hole",
+                 "Mass Collapse",
+                 "Mind Collapse",
+                 "Mouth Trumpet Cavalry",
+                 "No Vacancies",
+                 "Oruze Cruise",
+                 "Out of Focus",
+                 "Outfit 418",
+                 "POS Party",
+                 "Protean Concept",
+                 "ShekelSquad",
+                 "Singularity Expedition Services",
+                 "Violence is the Answer",
+                 "Vision Inc",
+                 "Wormhole Outlaw",
+                 "Wormhole Rats and Fromage",
+                 "X-Zest Voyage",
+                 "X Legion"]:
+        try:
+            graph_corp_char_movement(db, name)
+        except:
+            print("")
 
 
 main()
