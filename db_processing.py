@@ -1,5 +1,6 @@
 import sqlite3, json, os, datetime, requests, numpy
 import matplotlib.pyplot as plt
+from matplotlib import cm
 import pandas as pd
 
 
@@ -96,10 +97,19 @@ def write_short_record(record, db):
 
 def skip_short_npc_transfers(db):
     character_ids = list(map(lambda r: r[0], db.execute("SELECT DISTINCT character from transfers").fetchall()))
+    min_delta = datetime.timedelta(weeks=2)
+    t = 0
+    j = 0
     for i in character_ids:
-        data = list(set(db.execute("SELECT * FROM transfers WHERE character=?", (i,)).fetchall()))
-        last_transfer = 0
-        last_corp = ""
+        data = list(set(db.execute("SELECT * FROM transfers WHERE character=? ORDER BY date ASC", (i,)).fetchall()))
+        data = sorted(data, key=lambda x: x[1])
+        last_record = {
+            "record_id": "",
+            "start_date": 0,
+            "character_id": "",
+            "source": "",
+            "destination": ""
+        }
         for record in data:
             record = {
                 "record_id": record[0],
@@ -108,15 +118,30 @@ def skip_short_npc_transfers(db):
                 "source": record[3],
                 "destination": record[4]
             }
-            if last_corp == "":
+            if last_record["source"] == "":
                 write_short_record(record, db)
-            if isinstance(last_transfer, str):
-                last_date = datetime.fromisoformat(last_transfer)
-                current_date = datetime.fromisoformat(record["start_date"])
-                diff = last_date.timedelta(current_date)
-                print(diff)
-            last_corp = record["source"]
-            last_transfer = record["start_date"]
+                last_record = record
+            if isinstance(last_record["start_date"], str):
+                last_date = datetime.datetime.fromisoformat(last_record["start_date"].replace("Z", "").replace("T", " "))
+                current_date = datetime.datetime.fromisoformat(record["start_date"].replace("Z", "").replace("T", " "))
+                diff = current_date - last_date
+                is_short_npc_stay = diff < min_delta and record["source"] < 2000000
+                if is_short_npc_stay:
+                    last_record = {
+                        "record_id": record["record_id"],
+                        "start_date": record["start_date"],
+                        "character_id": record["character_id"],
+                        "source": last_record["source"],
+                        "destination": record["destination"]
+                    }
+                else:
+                    last_record = record
+                    j += 1
+                    write_short_record(record, db)
+
+            if t % 1000 == 0:
+                print(str(j) + ": " + str(t))
+            t += 1
         db.commit()
 
 
@@ -164,6 +189,7 @@ def get_eviction_dict():
 def graph_corp_char_movement(db, corp_name):
     data_in = pd.Series(dtype=int)
     data_out = pd.Series(dtype=int)
+    data_net = pd.Series(dtype=int)
     corp_id = get_corp_id(db, corp_name)
     print(corp_id)
     e_data = get_eviction_dict()
@@ -187,39 +213,102 @@ def graph_corp_char_movement(db, corp_name):
                 count_out -= 1
         data_in[interval.start_time] = count_in
         data_out[interval.start_time] = count_out
+        data_net[interval.start_time] = count_in + count_out
     print(data_in)
     data_in = data_in.rolling(window=8).mean()
     data_out = data_out.rolling(window=8).mean()
-    d = {"in": data_in, "out": data_out}
+    data_net = data_net.rolling(window=8).mean()
+    d = {"In": data_in, "Out": data_out, "Net": data_net}
     data = pd.DataFrame(d)
     print(data)
     plt.close("all")
     plt.figure(figsize=(20, 7.5))
-    plt.plot(data)
+    plt.plot(data["In"], color="green")
+    plt.plot(data["Out"], color="red")
+    plt.plot(data["Net"], color="grey")
     plt.axhline(y=0, color='k')
-    plt.legend(["In", "Out"])
+    plt.legend(["In", "Out", "Net"])
     plt.title(label=corp_name)
-    file = open("./evictions.dat", "r")
     i = data_out.min()
     j = data_in.max()
     print(j)
     for entry in e_data:
         if entry["ts"] > start:
             plt.axvline(entry["ts"])
-            plt.text(x=entry["ts"], y=i, s=entry["corp_name"])
             if i >= (j - (j / 6)):
                 i = data_out.min()
             else:
                 i += j / 6
-    file.close()
     plt.savefig("./graphs/" + corp_name + ".png")
+
+
+def get_corp_dict(db):
+    corps = db.execute("SELECT * FROM corps")
+    output = {}
+    for line in corps:
+        output[line[0]] = line[1]
+    return output
+
+
+def graph_corp_to_corp_char_movement(db, corp_name):
+    corp_id = get_corp_id(db, corp_name)
+    print(corp_id)
+    transfers_in = db.execute("SELECT * FROM transfers_minus_short_npc WHERE destination=? ORDER BY date ASC", (corp_id,)).fetchall()
+    transfers_out = db.execute("SELECT * FROM transfers_minus_short_npc WHERE source=? ORDER BY date ASC", (corp_id,)).fetchall()
+    all_corps = list(set(list(map(lambda x: x[3], transfers_in)) + list(map(lambda x: x[4], transfers_out))))
+    corp_lookup = get_corp_dict(db)
+    start_date_string = db.execute("SELECT MIN(date) FROM transfers WHERE destination=?", (corp_id,)).fetchall()[0][0]
+    start = datetime.datetime.fromisoformat(start_date_string.replace("T", " ").replace("Z", ""))
+    end = datetime.datetime.now()
+    date_range = pd.Series(pd.period_range(start=start, end=end, freq="W"))
+    data_in = {}
+    data_out = {}
+    # looking for dict of corp ids with series of weekly in and out
+    for key in all_corps:
+        data_in[key] = pd.Series(dtype=int)
+        data_out[key] = pd.Series(dtype=int)
+    for interval in date_range:
+        for key in all_corps:
+            data_in[key][interval.start_time] = 0
+            data_out[key][interval.start_time] = 0
+        for transfer in transfers_in:
+            ts = datetime.datetime.fromisoformat(transfer[1].replace("T", " ").replace("Z", ""))
+            if interval.start_time < ts < interval.end_time:
+                target_id = transfer[3]
+                data_in[target_id][interval.start_time] += 1
+        for transfer in transfers_out:
+            ts = datetime.datetime.fromisoformat(transfer[1].replace("T", " ").replace("Z", ""))
+            if interval.start_time < ts < interval.end_time:
+                target_id = transfer[4]
+                data_out[target_id][interval.start_time] += 1
+    output_in = {}
+    output_out = {}
+    for key in data_in:
+        if key > 2000000:
+            output_in[corp_lookup[key]] = data_in[key].rolling(window=8).mean()
+    data_in = pd.DataFrame(output_in)
+    e_data = get_eviction_dict()
+    plt.close("all")
+    plot_in = data_in.plot.area()
+    plot_in.set_title(corp_name)
+    for entry in e_data:
+        if entry["ts"] > start:
+            plot_in.axvline(entry["ts"])
+    plot_in = plot_in.get_figure()
+    plot_in.set_size_inches(20, 7.5)
+
+    plot_in.savefig("./graphs/" + corp_name + "_stacked_minus_npc.png")
+    print("./graphs/" + corp_name + "_stacked_direct.png")
+
+    # data_in = data_in.rolling(window=8).mean()
+    # data_out = data_out.rolling(window=8).mean()
 
 
 def main():
     db = sqlite3.connect('WHHistory2.sqlite3')
     set_up_tables(db)
-    for name in ["All-Out",
-                 "All Consuming Darkness",
+    corps = ["All Consuming Darkness",
+                 "All-Out",
                  "Almost Dangerous",
                  "Another War",
                  "Arctic Light Inc.",
@@ -257,11 +346,8 @@ def main():
                  "X-Zest Voyage",
                  "X Legion",
                  "The Dark Space Initiative",
-                 "Adhocracy Incorporated"]:
-        try:
-            graph_corp_char_movement(db, name)
-        except:
-            print("")
-
+                 "Adhocracy Incorporated"]
+    for corp in corps:
+        graph_corp_to_corp_char_movement(db, corp)
 
 main()
