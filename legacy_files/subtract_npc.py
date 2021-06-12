@@ -21,7 +21,7 @@ def run(filename):
 
 def main():
     with Pool(25) as p:
-        p.map(run, os.listdir("./char_histories"))
+        p.map(run, os.listdir("../char_histories"))
 
 
 if __name__ == '__main__':

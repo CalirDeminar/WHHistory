@@ -55,11 +55,11 @@ def fetch_character_history(character_id, db, existing_records):
 
 def get_combined_corp_history(db):
     size = 0
-    with open("./combined_ids.dat", "r") as file:
+    with open("combined_ids.dat", "r") as file:
         for line in file:
             size = size + 1
     file.close()
-    with open("./combined_ids.dat", "r") as file:
+    with open("combined_ids.dat", "r") as file:
         existing_records = db.execute("SELECT id FROM transfers").fetchall()
         print(existing_records)
         last = datetime.datetime.now()

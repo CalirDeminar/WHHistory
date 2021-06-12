@@ -82,10 +82,10 @@ def get_next_corps(corp_name):
 
 def run():
     save_data = {}
-    for corpname in os.listdir("./evewho_dumps"):
+    for corpname in os.listdir("../evewho_dumps"):
         corp_name = corpname.replace(".dat", "")
         save_data[corp_name] = get_next_corps(corp_name)
-    output_file = open("./corp_sourcing.json", "w")
+    output_file = open("../corp_sourcing.json", "w")
     output_file.write(json.dumps(save_data))
 
 

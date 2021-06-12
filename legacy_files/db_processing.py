@@ -70,7 +70,7 @@ def transfer():
     db = sqlite3.connect('WHHistory.sqlite3')
     set_up_tables(db)
     i = 0
-    files = os.listdir("./char_histories")
+    files = os.listdir("../char_histories")
     characters = added_characters(db)
     print(characters)
     for file in files:
@@ -172,7 +172,7 @@ def get_corp_id(db, corp_name):
 
 def get_eviction_dict():
     data = []
-    file = open("./evictions.dat", "r")
+    file = open("../evictions.dat", "r")
     for line in file:
         split = line.split(": ")
         target = split[0]

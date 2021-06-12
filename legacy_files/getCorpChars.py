@@ -10,7 +10,7 @@ def parse_evewho(filename):
     names = []
     corp_name = filename.replace("/", "").replace("evewho_dumps", "").replace(".dat", "")
     output_filename = corp_name + "_charids.txt"
-    if output_filename not in os.listdir("./char_id_dumps"):
+    if output_filename not in os.listdir("../char_id_dumps"):
         print(corp_name)
         with open("./evewho_dumps/" + filename, "r") as file:
             for row in file:
@@ -38,7 +38,7 @@ def parse_evewho(filename):
 
 
 def run():
-    for file in os.listdir("./evewho_dumps"):
+    for file in os.listdir("../evewho_dumps"):
         parse_evewho(file)
 
 
