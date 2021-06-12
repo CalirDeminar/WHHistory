@@ -21,7 +21,7 @@ class Character:
         for sub in split_array(names, 100):
             resp = Esi.get_ids(sub)
             characters += map(lambda c: Character(c["id"], c["name"]), resp["characters"])
-            print(sub)
+            print(".")
         return characters
 
     @staticmethod
@@ -36,16 +36,16 @@ class Character:
 
     @staticmethod
     def get_corp_transfers(character):
-        history = filter(
+        history = list(filter(
             lambda t: "corporation_id" in t and "record_id" in t and "start_date" in t,
-            Esi.get_corp_history(character.id)
-        )
+            Esi.get_raw_corp_history(character.id)
+        ))
         history.reverse()
         current_corp = 0
         output = []
         for line in history:
             if current_corp != 0:
-                transfer = Transfer(
+                transfer = Transfer.Transfer(
                     line["record_id"],
                     line["start_date"],
                     character.id,
@@ -54,4 +54,27 @@ class Character:
                 )
                 output.append(transfer)
             current_corp = line["corporation_id"]
+        return output
+
+    @staticmethod
+    def get_corp_transfers_skipping_npc(character):
+        history = list(filter(
+            lambda t: "corporation_id" in t and "record_id" in t and "start_date" in t,
+            Esi.get_raw_corp_history(character.id)
+        ))
+        history.reverse()
+        current_corp = 0
+        output = []
+        for line in history:
+            if line["corporation_id"] > 2000000:
+                if current_corp != 0:
+                    transfer = Transfer.Transfer(
+                        line["record_id"],
+                        line["start_date"],
+                        character.id,
+                        int(current_corp),
+                        int(line["corporation_id"])
+                    )
+                    output.append(transfer)
+                current_corp = line["corporation_id"]
         return output

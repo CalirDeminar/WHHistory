@@ -25,7 +25,7 @@ class Transfer:
 
     @staticmethod
     def insert_transfers(db, transfers):
-        existing_ids = Transfers.get_all_transfer_ids(db)
+        existing_ids = Transfer.get_all_transfer_ids(db)
         for transfer in transfers:
             if transfer.id not in existing_ids:
                 db.execute(
@@ -36,13 +36,38 @@ class Transfer:
 
     @staticmethod
     def populate_db_from_evewho():
+        db = DB.DB.connect()
+        DB.DB.set_up_tables(db)
         character_names = Evewho.EveWhoParser.get_full_character_list()
+        print(len(character_names))
         character_list = Character.Character.get_characters_from_names(character_names)
-        print(character_list)
+        print("Character List Gotten")
+        Character.Character.insert_characters(db, character_list)
+        i = 0
+        for character in character_list:
+            i += 1
+            try:
+                transfers = Character.Character.get_corp_transfers(character)
+                print(str(i) + " of " + str(len(character_list)))
+                Transfer.insert_transfers(db, transfers)
+            except:
+                print("Crash")
 
-        def run(character):
-            transfers = Character.Character.get_corp_transfers(character)
-            print(transfers)
-
-        with Pool(25) as p:
-            p.map(run, character_list)
+    @staticmethod
+    def populate_db_from_evewho_skipping_npc():
+        db = DB.DB.connect()
+        DB.DB.set_up_tables(db)
+        character_names = Evewho.EveWhoParser.get_full_character_list()
+        print(len(character_names))
+        character_list = Character.Character.get_characters_from_names(character_names)
+        print("Character List Gotten")
+        Character.Character.insert_characters(db, character_list)
+        i = 0
+        for character in character_list:
+            i += 1
+            try:
+                transfers = Character.Character.get_corp_transfers_skipping_npc(character)
+                print(str(i) + " of " + str(len(character_list)))
+                Transfer.insert_transfers(db, transfers)
+            except:
+                print("Crash")
