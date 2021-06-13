@@ -50,7 +50,7 @@ def graph_data(data, start_date, corp_name):
                 i = data["Out"].min()
             else:
                 i += j / 6
-    plt.savefig("./graphs/" + corp_name + ".png")
+    plt.savefig("./graphs/" + corp_name + "_velocity.png")
 
 
 def graph_corp_member_velocity(db, corp_name):

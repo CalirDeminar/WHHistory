@@ -26,7 +26,7 @@ corps = ["All Consuming Darkness",
                  "Little Red Riding Hole",
                  "Mass Collapse",
                  "Mind Collapse",
-                 "Mouth Trumpet Cavalry",
+                 "Mouth Trumpet Cavalry.",
                  "No Vacancies",
                  "Oruze Cruise",
                  "Out of Focus",
@@ -51,6 +51,7 @@ def main():
     # Transfer.Transfer.populate_db_from_evewho_skipping_npc()
     db = DB.DB.connect()
     for corp_name in corps:
+        print(corp_name)
         Graphing.graph_corp_member_velocity(db, corp_name)
 
 
