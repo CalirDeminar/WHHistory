@@ -2,6 +2,7 @@ import sqlite3
 import requests
 import json
 import datetime
+import Transfer
 
 
 def split(array, n):
@@ -41,13 +42,23 @@ class DB:
 
     @staticmethod
     def get_transfers_into_corp(db, corp_id):
-        return db.execute("SELECT * FROM transfers WHERE destination=? ORDER BY date ASC", (corp_id,)).fetchall()
+        raw = db.execute("SELECT * FROM transfers WHERE destination=? ORDER BY date ASC", (corp_id,)).fetchall()
+        return list(map(lambda t: Transfer.Transfer(t[0], t[1], t[2], t[3], t[4]), raw))
 
     @staticmethod
     def get_transfers_out_of_corp(db, corp_id):
-        return db.execute("SELECT * FROM transfers WHERE source=? ORDER BY date ASC", (corp_id,)).fetchall()
+        raw = db.execute("SELECT * FROM transfers WHERE source=? ORDER BY date ASC", (corp_id,)).fetchall()
+        return list(map(lambda t: Transfer.Transfer(t[0], t[1], t[2], t[3], t[4]), raw))
 
     @staticmethod
     def get_corp_starting_date(db, corp_id):
         start_date_string = db.execute("SELECT MIN(date) FROM transfers WHERE destination=?", (corp_id,)).fetchall()[0][0]
         return datetime.datetime.fromisoformat(start_date_string.replace("T", " ").replace("Z", ""))
+
+    @staticmethod
+    def get_corp_dict(db):
+        corps = db.execute("SELECT * FROM corps")
+        output = {}
+        for line in corps:
+            output[line[0]] = line[1]
+        return output

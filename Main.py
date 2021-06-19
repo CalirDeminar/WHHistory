@@ -52,7 +52,7 @@ def main():
     db = DB.DB.connect()
     for corp_name in corps:
         print(corp_name)
-        Graphing.graph_corp_member_velocity(db, corp_name)
+        Graphing.graph_corp_member_composition_velocity(db, corp_name)
 
 
 main()
